@@ -1,0 +1,8 @@
+# Core runtime dependencies (pinned for reproducible evaluations)
+google-genai==2.18.1
+pydantic==2.13.4
+PyYAML==6.0.3
+
+# Optional prompt optimization agent
+# Install with: pip install -e ".[optimizer]"
+google-adk==2.2.0

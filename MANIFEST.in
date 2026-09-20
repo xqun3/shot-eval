@@ -1,0 +1,5 @@
+include README.md
+include DEPLOYMENT.md
+include .env.example
+include prompts.yaml
+recursive-include prompt_optimizer_agent *.md

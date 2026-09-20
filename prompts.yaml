@@ -1,0 +1,242 @@
+# 评审 prompt 全集。改这个文件不用改代码、不用重启服务（按 mtime 热加载）。
+#
+# 注意：**判据就是评估口径，改了这里等于改了指标**。同一条片子换一版判据跑出来的
+# 分数不能直接比。为此每份报告都记了本文件的 `version` 与内容哈希（见报告里的
+# `prompt_version_tag`）——发现两轮分数对不上时，先看是不是这里改过。
+#
+# 中文文本一律用字面块 `|-`，**不要用折叠块 `>-`**——后者把换行变成空格，
+# 对英文正确，对中文会在句子中间塞进空格。加载时会检查并拒绝。
+#
+# 占位符用 {name} 写法，可用的名字见每段下面的注释；写了未定义的名字会在加载时报错，
+# 不会等到发请求才炸。
+
+version: 3
+
+# ── 逐 Scene 评审 ────────────────────────────────────────────────────────────
+
+scene:
+  # 可用占位符：shot_type / environment / scene_design / beat_label / beat_lines /
+  #             script_lines / style_label / style_reference
+  context: |
+    你是科普视频的画面评审。下面给你一段 AI 生成的视频，以及生成它时使用的分镜设计。
+    请只根据**画面**判断，不要评价声音。严格按 schema 输出。
+
+    【声明的景别】{shot_type}
+    【声明的环境】{environment}
+
+    【scene_design 原文】
+    {scene_design}
+
+    【本段应发生的内容 · 参照物：{beat_label}】
+    {beat_lines}
+
+    【本段口播原文 · 这一段要讲清楚的知识点】
+    {script_lines}
+
+  # 只在评风格时插入。可用占位符：style_label / style_reference
+  style_block: |
+
+    【风格参照 · {style_label}】
+    {style_reference}
+
+  criteria:
+    # beat_alignment 的判据随 beat_source 变
+    beat_alignment:
+      visual_beat: 画面是否真的在做 visual_beat 描述的事，时间顺序对不对。
+      script: |-
+        画面**有没有**把该时段口播讲的内容呈现出来，时序对不对。判的是内容不是字面：
+        口播说「光线被弯曲」，画面画出光线绕过天体就算做到。
+        这里只判「缺不缺」——画面演了但演错了、演反了，**不在这里扣**，归 science_accuracy。
+      both: 画面是否既在做 visual_beat 描述的事，又呈现了该时段口播讲的内容，时间顺序对不对。
+
+    design_fidelity: 景别、环境、镜头运动是否与 scene_design 一致。
+
+    # style_adherence 的判据随 style_source 变
+    style_adherence:
+      style_lock: 配色、光照、材质是否落在 style_lock 描述的范围内。
+      scene_design: 配色、光照、材质是否落在本 Scene 的 scene_design 所描述的范围内。
+      both: |-
+        配色、光照、材质是否同时符合全篇风格锁与本 Scene 的 scene_design；两者冲突时以本 Scene 的为准。
+
+    science_accuracy: |-
+      画面呈现出来的内容**对不对**，以及**它会让观众建立什么印象**。只判「错不错」：
+      画面完全没演到那件事，是 beat_alignment 的事，**不在这里扣**；
+      这里只管画面演了、却会让观众记住错误信息的情况。
+      四类：
+      （a）方向或结论画反了；
+      （b）量级失真——口播给了具体数字或尺寸，画面对不上；
+      （c）过程阶段顺序颠倒；
+      （d）比喻被实体化——口播用「像…一样」「仿佛」这类类比时，画面把喻体当成
+      真实存在的东西画了出来。类比本身通常没错，错的是让观众以为那个东西真的存在
+      于所描述的场景里。判法：把喻体换成它所比喻的真实结构，画面表达的意思会不会变？
+      会变就说明画面画的是喻体本身，不是被比喻的对象。
+      注意：口播说了什么**不构成免责**。口播用比喻是修辞，画面把比喻当实物画出来是错误——
+      这一条正是要抓「画面与口播一致、但观众被误导」的情况。
+      「教错」比「没教」严重得多：后者是缺口，前者在主动灌输错误，起判 major。
+      **只在有把握时才扣分**，拿不准就不扣。
+
+    clarity: |-
+      一个不懂这个知识点的人，只看这段画面能不能**看明白**。只判可懂性，不判对错——
+      画面好懂但内容误导，归 science_accuracy。
+      常见失败：关键结构被遮挡或一闪而过、同屏元素过多来不及看、
+      抽象概念只给了氛围没给机制、镜头太快来不及建立空间关系。
+
+    instructional_value: |-
+      这段画面对理解本段口播有多大帮助。满分是画面本身就把机制讲明白了；扣分的典型是——
+      画面只是好看的氛围填充，换成任何一段同风格素材都不影响理解，也就是说它没有承载信息。
+
+  # 三条科普维度前的共同前提
+  science_preamble: |
+
+    另外三个维度评的不是「有没有照计划演」，而是**这一段作为科普内容好不好**。
+    判的时候请设想一个不懂这个知识点的普通观众，只看画面（听不到旁白）：
+
+  # 不评风格时插一句，避免模型自己去挑风格问题
+  style_off_note: |
+
+    本轮**不评画面风格**（配色、光照、材质），相关问题不要列入扣分项。
+
+  # 共用尾段。可用占位符：dimension_count / critical_examples
+  rubric: |
+
+    **你不需要给分，只需要把扣分项一条条列出来**，分数由扣分项自动算出。每一条要写清：
+    扣在哪个维度、严重程度、出现的时间点（片段内相对时间）、画面上看到的具体证据、分镜在这里本来要求什么。
+
+    定级标准：
+    - critical（扣 3）：这个维度基本没达成。例如画面演的完全是另一件事、主体结构崩坏{critical_examples}。
+    - major（扣 1.5）：关键要素缺失或明显偏离。例如声明 wide shot 实际出了特写、参照物里的核心动作没发生。
+    - minor（扣 0.5）：细节瑕疵。例如镜头运动幅度不足、次要元素与描述略有出入、个别帧有轻微形变。
+
+    纪律：确实没问题的维度就不要为它编造扣分项，五分是允许的；但反过来，只要你在理由里提到了缺点，
+    就必须有对应的扣分项——不允许「说了问题却不扣分」。
+
+    同一个问题只扣一次。撞车时按这张表决定归谁，不要两边都扣、也不要因为扣过一次就放过：
+    - 该演的**没演到 / 演漏了 / 时序错位** → beat_alignment
+    - 演了，但**演反了 / 演错了 / 量级不对 / 阶段顺序颠倒 / 会让观众记住错误的东西** → science_accuracy
+    - 景别、环境、镜头运动与声明不符 → design_fidelity
+    - 内容没错，但**看不懂** → clarity
+    - 演对了也看得懂，但**这段画面对理解没有帮助** → instructional_value
+
+    另外如实填写：画面里有没有字幕、标题卡、水印、Logo、真实品牌名。
+    注意区分：给旁白配的字幕条属于违规；标注在物体上的尺寸、读数、部件名属于内容，不违规。
+    两类都要填进 visible_text。这几项单独统计，不计入上面{dimension_count}个维度的扣分。
+
+# ── 渲染模式盲判（独立请求，不含任何分镜信息）──────────────────────────────────
+
+render_blind: |-
+  判断这段视频的视觉风格属于以下哪一类：
+
+  - photoreal：真实摄影机拍摄的实拍素材质感。自然光的不均匀衰减、材质有磨损与污渍、
+    景深与镜头畸变、轻微的机身抖动、运动模糊、传感器噪点、不完美的构图。
+  - cg：计算机 3D 渲染。表面过于干净、光照理想化、几何完美对称、物理模拟感、
+    颜色纯度过高、缺少真实世界的随机瑕疵。
+  - illustrated：风格化叙事动画或影视级插画现实。可包含 2D/3D 动画角色、明确描边、
+    手绘或动画电影质感、夸张但连贯的角色动作；重点是叙事与情绪，不是科教结构图。
+  - vox：Vox-style 纸艺定格或平面拼贴可视化。可见卡纸厚度、瓦楞纸边缘、桌面影棚光影，
+    或旧报纸纹理、照片抠图边缘、半调网点和剪报式数据标签；不是 Minecraft 式体素像素。
+
+  如果无法确定，输出 unclear。
+
+  只看画面本身下判断，中文说明依据。严格按 schema 输出。
+  注意：不要评价时长或音频。
+
+# ── 整片 vs 整稿 ─────────────────────────────────────────────────────────────
+
+# 可用占位符：numbered_sentences
+narration: |
+  这是一条科普视频的完整成片（无人声，旁白稍后单独配上），
+  以及它对应的**完整口播稿**，已按句编号。
+
+  【口播稿】
+  {numbered_sentences}
+
+  任务一：逐句判断这句话讲的内容，在画面上有没有被呈现出来。
+  - 判的是**内容**，不是字面。口播说「光线被弯曲」，画面画出光线绕过天体，算 full。
+  - 只是气氛沾边不算：口播说「石斧砍不动岩壁」，画面只给了一个人拿着斧头站着，算 partial。
+  - 抽象转折句（「但是」「让我们回到」这类）如果画面有对应的镜头切换或情绪变化，算 full。
+  - 每一句都要给结论，编号必须对得上，不许漏、不许并。
+
+  任务二：把整片当一部片子看，判叙事是否连贯——因果讲不讲得通、
+  镜头之间衔接是否突兀、节奏有没有失衡。不给分，只列扣分项。
+
+  注意：视频是低分辨率代理，画质本身不在评判范围内。严格按 schema 输出。
+
+# ── prompt 文本语义补漏（纯文本，无视频）───────────────────────────────────────
+
+text_rules: |
+  下面是一条科普视频的全部分镜描述与风格锁（送给视频生成模型的英文 prompt）。
+  请找出其中三类问题，每条都要**逐字引用原文片段**。
+
+  1. brand —— 真实厂商名、商标、受版权保护的作品名。
+     写进 prompt 视频模型就会把商标渲染出来，成片不能用。
+     例：`a Micron GPU` → 应改成 `an unbranded dual-fan graphics card`。
+
+  2. vague_culture —— 用含糊的文化标签代替具体形制。
+     模型拿不到形制就会给泛亚洲混搭（西方面孔配日式甲胄）。
+     例：`traditional oriental armor`、`an East Asian aesthetic`、`Zen-inspired`。
+     注意：写清了族裔、服饰形制、纹样的**不算**违规。
+
+  3. identity_label —— 用不可视的身份代替外观描述。
+     `scientist` 画不出来，模型只能靠刻板印象补全。
+     例：`a scientist explains`、`the researcher points at`、`a young engineer in a lab coat`。
+     注意：身份词后面**跟了族裔／年龄／发型／服装形制**的不算违规。
+
+  纪律：`quote` 必须能在原文里原样搜到，一个字都不能改。宁可漏报，不要编造。
+  确实没有问题就交空列表。严格按 schema 输出。
+
+  【待检文本】
+
+# ── 链路归因 + prompt 优化（TEXT-ONLY，不含视频）─────────────────────────────
+
+# 可用占位符：provenance_json / deductions_json
+optimization: |-
+  你是一个视频生成链路的归因分析师。下面给你一个 scene 的完整链路溯源（provenance）
+  和评审发现的所有扣分项（deductions）。
+
+  你的任务：
+  1. 无论 deductions 是否为空，都必须分别检查三个阶段，并且每个阶段至少输出一条 finding：
+     - script_to_plan：脚本→分镜方案
+     - plan_to_prompt：分镜方案→视频 prompt
+     - prompt_to_video：视频 prompt→生成结果
+     status 只能是 pass / problem / unassessable。缺少上游字段时填 unassessable，不能猜。
+     特别注意：plan_scene_design 是 scene 级，而 provenance.unit_granularity 可能是 shot。
+     当 unit_granularity=shot 且 plan_visual_beats 为空时，不能仅因 plan_scene_design 描述了
+     同 scene 的其他 shot 就判 script_to_plan 漂移；此时缺少当前 shot 的 plan 参照，
+     script_to_plan 应判 unassessable。scene 设计被生成 prompt 合理细化也不算内容丢失。
+
+  2. problem finding 必须逐字引用 source_field 中的原文片段 exact_quote。
+     source_field 只能取 script_fragment / script_context / plan_scene_design /
+     plan_visual_beats / generated_scene_design / generated_visual_beat / style_lock /
+     render_mode / final_video_prompt / video_evidence。video_evidence 只能逐字引用 deductions.evidence。
+     pass 或 unassessable 不需要编造 quote。
+
+  3. root_cause 只能取 faithful / missing_content / meaning_drift / ambiguous_instruction /
+     conflicting_instruction / overloaded_instruction / unvisualizable_instruction /
+     scientific_misdescription / generator_noncompliance / insufficient_evidence。
+
+  4. 提出可操作的最小 prompt 修改（patches），每条修改指定：
+     - target：要修改的字段（plan_scene_design / plan_visual_beats /
+       generated_scene_design / generated_visual_beat / style_lock / render_mode）
+     - op：操作类型（replace / delete / insert_after / append）
+     - anchor：replace/delete/insert_after 时要定位的原文片段
+     - content：replace/insert_after/append 时的新内容
+
+  5. 如果根因在 generator 侧（prompt_to_video），给出非 prompt 层面的建议
+     （non_prompt_actions），如 retry / switch_model / adjust_params。若要求已经在最终 prompt
+     中表达清楚，不得再用同义句重复堆 prompt，root_cause 应为 generator_noncompliance。
+
+  注意：
+  - 不要评价时长或音频相关的内容。
+  - anchor 必须能在 target 字段的当前值中原样搜到。
+  - replace / insert_after / append 必须给出非空 content；append 可以作用于空字段。
+  - patch 必须给出 0~1 的 confidence。
+  - deductions 中的 round 表示问题出现在哪一轮；优先修复跨轮稳定问题，单轮问题降低置信度。
+  - 宁可少给一条不确定的建议，也不要给出无法落地的修改。
+
+  【链路溯源】
+  {provenance_json}
+
+  【评审扣分项】
+  {deductions_json}
+
+  严格按 schema 输出 JSON。

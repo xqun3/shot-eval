@@ -1,0 +1,36 @@
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments and local configuration
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Build/package artifacts
+build/
+dist/
+*.egg-info/
+
+# Generated evaluation data and media (never publish production videos/reports)
+runs/
+eval/
+optimizations/
+reports/
+*.mp4
+*.mov
+*.webm
+*.avi
+*.mkv
+
+# Local server/log/temp output
+*.log
+*.tmp
+*.bak
+.DS_Store

@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=75.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shot-eval"
+version = "0.1.0"
+description = "Evidence-grounded, shot-level evaluation for generated videos"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  {name = "shot-eval contributors"},
+]
+keywords = ["video", "evaluation", "gemini", "vertex-ai", "multimodal"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+  "google-genai==2.18.1",
+  "pydantic==2.13.4",
+  "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+optimizer = [
+  "google-adk==2.2.0",
+]
+dev = [
+  "google-adk==2.2.0",
+]
+
+[project.scripts]
+shot-eval = "shot_eval.cli:main"
+shot-eval-serve = "shot_eval.serve:main"
+shot-eval-report = "shot_eval.report:main"
+shot-eval-optimize = "shot_eval.prompt_optimizer_agent.__main__:main"
+
+[tool.setuptools]
+package-dir = {shot_eval = "."}
+packages = ["shot_eval", "shot_eval.prompt_optimizer_agent"]
+
+[tool.setuptools.package-data]
+shot_eval = ["prompts.yaml"]
+
+[tool.unittest]
+start-directory = "tests"
